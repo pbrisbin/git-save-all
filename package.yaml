@@ -54,6 +54,7 @@ library:
     - bytestring
     - conduit
     - filepath
+    - optparse-applicative
     - path
     - path-io
     - these

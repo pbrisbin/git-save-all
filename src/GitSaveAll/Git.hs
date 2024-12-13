@@ -4,6 +4,7 @@ module GitSaveAll.Git
   ( withFetchedRemote
   , branchListAll
   , revListCount
+  , push
   ) where
 
 import Prelude
@@ -14,6 +15,7 @@ import Data.ByteString.Lazy (ByteString)
 import Data.ByteString.Lazy.Char8 qualified as BSL8
 import Path
 import Path.IO
+import System.IO (hPutStrLn, stderr)
 import System.Process.Typed
 import UnliftIO.Exception (handleAny)
 
@@ -28,7 +30,15 @@ withFetchedRemote repo remote f = do
         $ True
         <$ readGit repo ["fetch", remote]
 
-    when fetched f
+    if fetched
+      then f
+      else
+        liftIO
+          $ hPutStrLn stderr
+          $ "WARNING: "
+          <> toFilePath repo
+          <> " could not fetch "
+          <> remote
 
 branchListAll :: MonadIO m => Path Abs Dir -> m [String]
 branchListAll repo =
@@ -40,10 +50,17 @@ revListCount repo a b =
  where
   spec = a <> ".." <> b
 
+push :: MonadIO m => Path Abs Dir -> String -> String -> m ()
+push repo remote branch = runGit repo ["push", "--quiet", "-u", remote, branch]
+
 readGit :: MonadIO m => Path Abs Dir -> [String] -> m ByteString
 readGit repo args =
   fst
     <$> readProcess_ (proc "git" $ ["--git-dir", toFilePath $ repo </> dotGit] <> args)
+
+runGit :: MonadIO m => Path Abs Dir -> [String] -> m ()
+runGit repo args =
+  runProcess_ (proc "git" $ ["--git-dir", toFilePath $ repo </> dotGit] <> args)
 
 dotGit :: Path Rel Dir
 dotGit = [reldir|.git|]

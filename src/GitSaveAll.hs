@@ -5,8 +5,10 @@ module GitSaveAll
 import Prelude
 
 import Conduit
+import Control.Monad (unless, when)
 import Data.These
 import GitSaveAll.BranchState
+import GitSaveAll.Git (push)
 import GitSaveAll.Options
 import GitSaveAll.RepoBranch
 import Path
@@ -14,44 +16,43 @@ import Path.IO
 import System.FilePath (dropTrailingPathSeparator)
 
 main :: IO ()
-main = do
-  options <- parseOptions
+main = run =<< parseOptions
+
+run :: Options -> IO ()
+run options = do
+  cwd <- getCurrentDir
 
   let
-    includeOrg :: Path Abs Dir -> Bool
-    includeOrg =
-      (`elem` options.includeOrgs)
-        . dropTrailingPathSeparator
-        . toFilePath
-        . dirname
-
-    includeBranch :: RepoBranch -> Bool
-    includeBranch rb = case rb.branch of
-      This a -> a `notElem` options.excludeRefs
-      That {} -> False -- don't care about remote only
-      These a _ -> a `notElem` options.excludeRefs
-
     toRepoBase :: Path Abs Dir -> String
     toRepoBase x =
       dropTrailingPathSeparator
         $ maybe (toFilePath x) toFilePath
-        $ stripProperPrefix options.code x
+        $ stripProperPrefix cwd x
 
     onBranchState :: BranchState -> IO ()
     onBranchState = \case
-      InSyncOrBehind {} -> pure ()
-      PushNeeded repo branch _ ->
-        putStrLn $ toRepoBase repo <> "@" <> branch <> " needs to be pushed"
+      InSyncOrBehind repo branch ->
+        unless options.quiet $ do
+          putStrLn $ "✓ " <> toRepoBase repo <> "@" <> branch <> " is in sync or behind"
+      PushNeeded repo branch _ -> do
+        putStrLn $ "✗ " <> toRepoBase repo <> "@" <> branch <> " needs to be pushed"
+        when options.push $ push repo options.remote branch
       SyncNeeded repo branch _ _ ->
-        putStrLn $ toRepoBase repo <> "@" <> branch <> " needs to be force-pushed"
-
-  (orgs, _) <- listDir options.code
+        putStrLn $ "! "
+          <> toRepoBase repo
+          <> "@"
+          <> branch
+          <> " needs to be force-pushed"
 
   runConduit
-    $ yieldMany orgs
-    .| filterC includeOrg
-    .| concatMapMC (fmap fst . listDir)
+    $ yieldMany ((cwd </>) <$> options.repos)
     .| awaitForever (sourceRepoBranches options.remote)
     .| filterC includeBranch
     .| awaitForever (sourceBranchState options.remote)
     .| mapM_C onBranchState
+ where
+  includeBranch :: RepoBranch -> Bool
+  includeBranch rb = case rb.branch of
+    This a -> a `notElem` options.exclude
+    That {} -> False -- don't care about remote only
+    These a _ -> a `notElem` options.exclude

@@ -1,5 +1,3 @@
-{-# LANGUAGE QuasiQuotes #-}
-
 module GitSaveAll.Options
   ( Options (..)
   , parseOptions
@@ -7,27 +5,70 @@ module GitSaveAll.Options
 
 import Prelude
 
+import Data.Bifunctor (first)
+import Data.List.NonEmpty (NonEmpty, some1)
+import Options.Applicative
 import Path
+import UnliftIO.Exception (displayException)
 
 data Options = Options
-  { code :: Path Abs Dir
-  , includeOrgs :: [String]
-  , excludeRefs :: [String]
-  , remote :: String
+  { remote :: String
+  , exclude :: [String]
+  , push :: Bool
+  , quiet :: Bool
+  , repos :: NonEmpty (Path Rel Dir)
   }
 
 parseOptions :: IO Options
-parseOptions =
-  pure
-    Options
-      { code = [absdir|/home/patrick/code|]
-      , includeOrgs =
-          [ "pbrisbin"
-          , "RenaissancePlace"
-          , "restyled-io"
-          , "archlinux-downgrade"
-          , "freckle"
+parseOptions = do
+  execParser
+    $ info (optionsParser <**> helper)
+    $ fullDesc
+    <> progDesc "Report, and optionally push, branches that are behind a remote"
+
+optionsParser :: Parser Options
+optionsParser =
+  Options
+    <$> strOption
+      ( mconcat
+          [ short 'r'
+          , long "remote-name"
+          , help "The name of the remote to use"
+          , metavar "REMOTE"
+          , showDefault
+          , value "origin"
           ]
-      , excludeRefs = ["HEAD", "main", "master", "develop"]
-      , remote = "origin"
-      }
+      )
+    <*> many
+      ( strOption
+          ( mconcat
+              [ short 'x'
+              , long "exclude"
+              , help "Branches to exclude from processing"
+              , metavar "BRANCH"
+              ]
+          )
+      )
+    <*> switch
+      ( mconcat
+          [ short 'p'
+          , long "push"
+          , help "Actually push branches found to be behind"
+          ]
+      )
+    <*> switch
+      ( mconcat
+          [ short 'q'
+          , long "quiet"
+          , help "Don't report in-sync branches"
+          ]
+      )
+    <*> some1
+      ( argument
+          (eitherReader $ first displayException . parseRelDir)
+          ( mconcat
+              [ help "Git repository to operate on"
+              , metavar "DIRECTORY"
+              ]
+          )
+      )
