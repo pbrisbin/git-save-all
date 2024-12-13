@@ -20,7 +20,7 @@ import Data.Text.Escaped
 import Data.Text.IO qualified as T
 import Data.These
 import GitSaveAll.BranchState
-import GitSaveAll.Git (push)
+import GitSaveAll.Git
 import GitSaveAll.Options
 import GitSaveAll.RepoBranch
 import Path
@@ -42,6 +42,14 @@ run options = do
         $ dropTrailingPathSeparator
         $ maybe (toFilePath x) toFilePath
         $ stripProperPrefix cwd x
+
+    onRepoException :: RepoException -> IO ()
+    onRepoException re =
+      T.putStrLn
+        $ r
+        $ red "! "
+        <> cyan (toRepoBase re.repo)
+        <> red (" could not fetch " <> fromString options.remote)
 
     onBranchState :: BranchState -> IO ()
     onBranchState = \case
@@ -76,7 +84,9 @@ run options = do
 
   runConduit
     $ yieldMany repos
+    .| filterMC isGitRepo
     .| awaitForever (sourceRepoBranches options.remote)
+    .| awaitForever (either (liftIO . onRepoException) yield)
     .| filterC includeBranch
     .| awaitForever (sourceBranchState options.remote)
     .| mapM_C onBranchState

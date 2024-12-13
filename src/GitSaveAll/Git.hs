@@ -9,7 +9,8 @@
 -- Stability   : experimental
 -- Portability : POSIX
 module GitSaveAll.Git
-  ( withFetchedRemote
+  ( isGitRepo
+  , fetch
   , branchListAll
   , revListCount
   , push
@@ -17,39 +18,19 @@ module GitSaveAll.Git
 
 import Prelude
 
-import Control.Monad (when)
+import Control.Monad (void)
 import Control.Monad.IO.Class (MonadIO (..))
 import Data.ByteString.Lazy (ByteString)
 import Data.ByteString.Lazy.Char8 qualified as BSL8
-import Data.String (IsString (..))
-import Data.Text.Escaped
-import Data.Text.IO qualified as T
 import Path
 import Path.IO
-import System.IO (stderr)
 import System.Process.Typed
-import UnliftIO.Exception (handleAny)
 
-withFetchedRemote :: MonadIO m => Path Abs Dir -> String -> m () -> m ()
-withFetchedRemote repo remote f = do
-  isGit <- doesDirExist $ repo </> dotGit
+isGitRepo :: MonadIO m => Path Abs Dir -> m Bool
+isGitRepo repo = doesDirExist $ repo </> dotGit
 
-  when isGit $ do
-    fetched <-
-      liftIO
-        $ handleAny (const $ pure False)
-        $ True
-        <$ readGit repo ["fetch", remote]
-
-    if fetched
-      then f
-      else liftIO $ do
-        r <- terminalRenderer
-        T.hPutStrLn stderr
-          $ r
-          $ red "! "
-          <> cyan (fromString $ toFilePath repo)
-          <> red (" remote " <> fromString remote <> " does not exist")
+fetch :: MonadIO m => Path Abs Dir -> String -> m ()
+fetch repo remote = void $ readGit repo ["fetch", remote]
 
 branchListAll :: MonadIO m => Path Abs Dir -> m [String]
 branchListAll repo =
