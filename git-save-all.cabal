@@ -55,10 +55,12 @@ library
       base <5
     , bytestring
     , conduit
+    , escaped
     , filepath
     , optparse-applicative
     , path
     , path-io
+    , text
     , these
     , typed-process
     , unliftio

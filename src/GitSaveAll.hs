@@ -15,6 +15,9 @@ import Prelude
 import Conduit
 import Control.Monad (unless, when)
 import Data.List.NonEmpty (nonEmpty)
+import Data.String (IsString (..))
+import Data.Text.Escaped
+import Data.Text.IO qualified as T
 import Data.These
 import GitSaveAll.BranchState
 import GitSaveAll.Git (push)
@@ -29,12 +32,14 @@ main = run =<< parseOptions
 
 run :: Options -> IO ()
 run options = do
+  r <- terminalRenderer
   cwd <- getCurrentDir
 
   let
-    toRepoBase :: Path Abs Dir -> String
+    toRepoBase :: Path Abs Dir -> Escaped
     toRepoBase x =
-      dropTrailingPathSeparator
+      fromString
+        $ dropTrailingPathSeparator
         $ maybe (toFilePath x) toFilePath
         $ stripProperPrefix cwd x
 
@@ -42,16 +47,30 @@ run options = do
     onBranchState = \case
       InSyncOrBehind repo branch ->
         unless options.quiet $ do
-          putStrLn $ "✓ " <> toRepoBase repo <> "@" <> branch <> " is in sync or behind"
+          T.putStrLn
+            $ r
+            $ green "✓ "
+            <> cyan (toRepoBase repo)
+            <> "@"
+            <> magenta (fromString branch)
+            <> green " is in sync or behind"
       PushNeeded repo branch _ -> do
-        putStrLn $ "✗ " <> toRepoBase repo <> "@" <> branch <> " needs to be pushed"
+        T.putStrLn
+          $ r
+          $ yellow "✗ "
+          <> cyan (toRepoBase repo)
+          <> "@"
+          <> magenta (fromString branch)
+          <> yellow " needs to be pushed"
         when options.push $ push repo options.remote branch
       SyncNeeded repo branch _ _ ->
-        putStrLn $ "! "
-          <> toRepoBase repo
+        T.putStrLn
+          $ r
+          $ red "! "
+          <> cyan (toRepoBase repo)
           <> "@"
-          <> branch
-          <> " needs to be force-pushed"
+          <> magenta (fromString branch)
+          <> red " needs to be force-pushed"
 
   let repos = maybe (pure cwd) (fmap (cwd </>)) $ nonEmpty options.repos
 

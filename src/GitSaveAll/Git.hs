@@ -1,3 +1,5 @@
+{-# LANGUAGE QuasiQuotes #-}
+
 -- |
 --
 -- Module      : GitSaveAll.Git
@@ -6,8 +8,6 @@
 -- Maintainer  : pbrisbin@gmail.com
 -- Stability   : experimental
 -- Portability : POSIX
-{-# LANGUAGE QuasiQuotes #-}
-
 module GitSaveAll.Git
   ( withFetchedRemote
   , branchListAll
