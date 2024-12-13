@@ -1,13 +1,15 @@
 module GitSaveAll.BranchState
   ( BranchState (..)
   , getBranchState
-  , isInSyncOrBehind
+  , sourceBranchState
   ) where
 
 import Prelude
 
-import Control.Monad.IO.Class (MonadIO (..))
+import Conduit
+import Data.These
 import GitSaveAll.Git (revListCount)
+import GitSaveAll.RepoBranch
 import Path
 
 data BranchState
@@ -36,8 +38,13 @@ getBranchState repo remote branch = do
 
   rbranch = remote <> "/" <> branch
 
-isInSyncOrBehind :: BranchState -> Bool
-isInSyncOrBehind = \case
-  InSyncOrBehind {} -> True
-  PushNeeded {} -> False
-  SyncNeeded {} -> False
+sourceBranchState
+  :: MonadIO m
+  => String
+  -> RepoBranch
+  -> ConduitT RepoBranch BranchState m ()
+sourceBranchState remote rb =
+  case rb.branch of
+    This a -> yield $ PushNeeded rb.repo a Nothing
+    That {} -> pure ()
+    These a _ -> yield =<< lift (getBranchState rb.repo remote a)

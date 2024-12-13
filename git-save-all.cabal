@@ -28,6 +28,9 @@ library
       GitSaveAll.Branch
       GitSaveAll.BranchState
       GitSaveAll.Git
+      GitSaveAll.Options
+      GitSaveAll.Remote
+      GitSaveAll.RepoBranch
   other-modules:
       Paths_git_save_all
   hs-source-dirs:
