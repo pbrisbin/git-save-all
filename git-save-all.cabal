@@ -26,6 +26,7 @@ library
   exposed-modules:
       GitSaveAll
       GitSaveAll.Branch
+      GitSaveAll.Git
   other-modules:
       Paths_git_save_all
   hs-source-dirs:

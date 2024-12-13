@@ -7,18 +7,15 @@ module GitSaveAll
 import Prelude
 
 import Control.Monad (when)
-import Data.ByteString.Lazy (ByteString)
-import Data.ByteString.Lazy.Char8 qualified as BSL8
 import Data.Foldable (for_)
 import Data.List (sort)
 import Data.Maybe (mapMaybe)
 import Data.These
 import GitSaveAll.Branch
+import GitSaveAll.Git
 import Path
 import Path.IO
 import System.FilePath (dropTrailingPathSeparator)
-import System.Process.Typed
-import UnliftIO.Exception (handleAny)
 
 code :: Path Abs Dir
 code = [absdir|/home/patrick/code|]
@@ -52,19 +49,17 @@ main = do
         withCurrentDir repo $ do
           isGit <- doesDirExist [reldir|.git|]
           when isGit $ do
-            fetched <- fetchRemote
+            fetched <- fetch defaultRemote
             when fetched $ processRepo repo
 
 processRepo :: Path Abs Dir -> IO ()
 processRepo repo = do
-  bs <- readGit ["branch", "--list", "--all"]
+  bs <- branchListAll
   base <- dropTrailingPathSeparator . toFilePath <$> stripProperPrefix code repo
 
   let
     (locals, remotes) =
-      partitionBranches defaultRemote $
-        mapMaybe (parseBranch . BSL8.unpack) $
-          BSL8.lines bs
+      partitionBranches defaultRemote $ mapMaybe parseBranch bs
 
     pairs =
       mapMaybe
@@ -105,19 +100,6 @@ getBranchState local = \case
       (0, b) -> BehindRemote b
       (a, 0) -> AheadOfRemote a
       (a, b) -> NeedsForcePush a b
-
-fetchRemote :: IO Bool
-fetchRemote =
-  handleAny (const $ pure False) $ True <$ readGit ["fetch", defaultRemote]
-
-revListCount :: String -> String -> IO Int
-revListCount a b =
-  read . BSL8.unpack <$> readGit ["rev-list", "--count", spec]
- where
-  spec = a <> ".." <> b
-
-readGit :: [String] -> IO ByteString
-readGit args = fst <$> readProcess_ (proc "git" args)
 
 pairup :: Ord a => [a] -> [a] -> [These a a]
 pairup [] as = That <$> as
