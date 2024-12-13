@@ -1,3 +1,11 @@
+-- |
+--
+-- Module      : GitSaveAll.Git
+-- Copyright   : (c) 2024 Patrick Brisbin
+-- License     : AGPL-3
+-- Maintainer  : pbrisbin@gmail.com
+-- Stability   : experimental
+-- Portability : POSIX
 {-# LANGUAGE QuasiQuotes #-}
 
 module GitSaveAll.Git
