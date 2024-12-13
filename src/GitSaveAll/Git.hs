@@ -21,9 +21,12 @@ import Control.Monad (when)
 import Control.Monad.IO.Class (MonadIO (..))
 import Data.ByteString.Lazy (ByteString)
 import Data.ByteString.Lazy.Char8 qualified as BSL8
+import Data.String (IsString (..))
+import Data.Text.Escaped
+import Data.Text.IO qualified as T
 import Path
 import Path.IO
-import System.IO (hPutStrLn, stderr)
+import System.IO (stderr)
 import System.Process.Typed
 import UnliftIO.Exception (handleAny)
 
@@ -40,13 +43,13 @@ withFetchedRemote repo remote f = do
 
     if fetched
       then f
-      else
-        liftIO
-          $ hPutStrLn stderr
-          $ "WARNING: "
-          <> toFilePath repo
-          <> " could not fetch "
-          <> remote
+      else liftIO $ do
+        r <- terminalRenderer
+        T.hPutStrLn stderr
+          $ r
+          $ red "! "
+          <> cyan (fromString $ toFilePath repo)
+          <> red (" remote " <> fromString remote <> " does not exist")
 
 branchListAll :: MonadIO m => Path Abs Dir -> m [String]
 branchListAll repo =
