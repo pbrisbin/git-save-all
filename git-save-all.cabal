@@ -26,6 +26,7 @@ library
   exposed-modules:
       GitSaveAll
       GitSaveAll.Branch
+      GitSaveAll.BranchState
       GitSaveAll.Git
   other-modules:
       Paths_git_save_all
@@ -50,6 +51,7 @@ library
   build-depends:
       base <5
     , bytestring
+    , conduit
     , filepath
     , path
     , path-io

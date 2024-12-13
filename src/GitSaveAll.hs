@@ -6,12 +6,13 @@ module GitSaveAll
 
 import Prelude
 
-import Control.Monad (when)
-import Data.Foldable (for_)
+import Conduit
+import Data.Bifunctor (bimap)
 import Data.List (sort)
 import Data.Maybe (mapMaybe)
 import Data.These
 import GitSaveAll.Branch
+import GitSaveAll.BranchState
 import GitSaveAll.Git
 import Path
 import Path.IO
@@ -19,12 +20,6 @@ import System.FilePath (dropTrailingPathSeparator)
 
 code :: Path Abs Dir
 code = [absdir|/home/patrick/code|]
-
-defaultRemote :: String
-defaultRemote = "origin"
-
-excludeBranches :: [String]
-excludeBranches = ["main", "master", "develop"]
 
 includeOrgs :: [String]
 includeOrgs =
@@ -35,71 +30,67 @@ includeOrgs =
   , "freckle"
   ]
 
+defaultRemote :: String
+defaultRemote = "origin"
+
+excludeRefs :: [String]
+excludeRefs = ["HEAD", "main", "master", "develop"]
+
 main :: IO ()
 main = do
   (orgs, _) <- listDir code
 
-  for_ orgs $ \org -> do
-    let name = dropTrailingPathSeparator $ toFilePath $ dirname org
+  actions <-
+    runConduit
+      $ yieldMany orgs
+      .| filterC includeOrg
+      .| concatMapMC (fmap fst . listDir)
+      .| sourceBranches
+      .| iterMC print
+      .| filterC includeBranch
+      .| processRepoBranch defaultRemote
+      .| sinkList
 
-    when (name `elem` includeOrgs) $ do
-      (repos, _) <- listDir org
+  print actions
+ where
+  includeOrg :: Path Abs Dir -> Bool
+  includeOrg =
+    (`elem` includeOrgs)
+      . dropTrailingPathSeparator
+      . toFilePath
+      . dirname
 
-      for_ repos $ \repo -> do
-        withCurrentDir repo $ do
-          isGit <- doesDirExist [reldir|.git|]
-          when isGit $ do
-            fetched <- fetch defaultRemote
-            when fetched $ processRepo repo
+  includeBranch :: RepoBranch -> Bool
+  includeBranch rb = case rb.branch of
+    This a -> a `notElem` excludeRefs
+    That {} -> False -- don't care about remote only
+    These a _ -> a `notElem` excludeRefs
 
-processRepo :: Path Abs Dir -> IO ()
-processRepo repo = do
-  bs <- branchListAll
-  base <- dropTrailingPathSeparator . toFilePath <$> stripProperPrefix code repo
-
-  let
-    (locals, remotes) =
-      partitionBranches defaultRemote $ mapMaybe parseBranch bs
-
-    pairs =
-      mapMaybe
-        ( \case
-            This a | a `elem` excludeBranches -> Nothing
-            This a -> Just (a, Nothing)
-            That {} -> Nothing
-            These a _ | a `elem` excludeBranches -> Nothing
-            These a b -> Just (a, Just b)
-        )
-        $ pairup (sort locals) (sort remotes)
-
-  for_ pairs $ \(local, mRemote) -> do
-    getBranchState local mRemote >>= \case
-      UpToDate -> pure ()
-      BehindRemote {} -> pure ()
-      x -> putStrLn $ unwords [base, local, show x]
-
-data BranchState
-  = RemoteDoesNotExist
-  | AheadOfRemote Int
-  | BehindRemote Int
-  | NeedsForcePush Int Int
-  | UpToDate
+data RepoBranch = RepoBranch
+  { repo :: Path Abs Dir
+  , branch :: These String String
+  }
   deriving stock Show
 
-getBranchState :: String -> Maybe String -> IO BranchState
-getBranchState local = \case
-  Nothing -> pure RemoteDoesNotExist
-  Just remote -> do
-    let qremote = defaultRemote <> "/" <> remote
+sourceBranches :: MonadIO m => ConduitT (Path Abs Dir) RepoBranch m ()
+sourceBranches = awaitForever $ \repo -> do
+  withFetchedRemote repo defaultRemote $ do
+    bs <- branchListAll repo
+    yieldMany
+      $ map (RepoBranch repo)
+      $ uncurry pairup
+      $ bimap sort sort
+      $ partitionBranches defaultRemote
+      $ mapMaybe parseBranch bs
 
-    ahead <- revListCount qremote local
-    behind <- revListCount local qremote
-
-    pure $ case (ahead, behind) of
-      (0, 0) -> UpToDate
-      (0, b) -> BehindRemote b
-      (a, 0) -> AheadOfRemote a
-      (a, b) -> NeedsForcePush a b
+processRepoBranch :: MonadIO m => String -> ConduitT RepoBranch BranchState m ()
+processRepoBranch remote = awaitForever $ \rb ->
+  case rb.branch of
+    This a -> yield $ PushNeeded rb.repo a Nothing
+    That {} -> pure ()
+    These a _ -> do
+      bs <- lift $ getBranchState rb.repo remote a
+      yield bs
 
 pairup :: Ord a => [a] -> [a] -> [These a a]
 pairup [] as = That <$> as

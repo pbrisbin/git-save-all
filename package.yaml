@@ -51,13 +51,14 @@ default-extensions:
 library:
   source-dirs: src
   dependencies:
-    -  bytestring
-    -  filepath
-    -  path
-    -  path-io
-    -  these
-    -  typed-process
-    -  unliftio
+    - bytestring
+    - conduit
+    - filepath
+    - path
+    - path-io
+    - these
+    - typed-process
+    - unliftio
 
 executables:
   git-save-all:

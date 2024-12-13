@@ -23,3 +23,5 @@ import-grouping:
 sort-constraints: true
 sort-derived-classes: true
 sort-deriving-clauses: true
+fixities:
+  - infixl 9 $ # stop leaving hanging-$s all over
