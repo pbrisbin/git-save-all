@@ -6,7 +6,6 @@ module GitSaveAll.Options
 import Prelude
 
 import Data.Bifunctor (first)
-import Data.List.NonEmpty (NonEmpty, some1)
 import Options.Applicative
 import Path
 import UnliftIO.Exception (displayException)
@@ -16,7 +15,7 @@ data Options = Options
   , exclude :: [String]
   , push :: Bool
   , quiet :: Bool
-  , repos :: NonEmpty (Path Rel Dir)
+  , repos :: [Path Rel Dir]
   }
 
 parseOptions :: IO Options
@@ -63,7 +62,7 @@ optionsParser =
           , help "Don't report in-sync branches"
           ]
       )
-    <*> some1
+    <*> many
       ( argument
           (eitherReader $ first displayException . parseRelDir)
           ( mconcat

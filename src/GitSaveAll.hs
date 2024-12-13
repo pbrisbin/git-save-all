@@ -6,6 +6,7 @@ import Prelude
 
 import Conduit
 import Control.Monad (unless, when)
+import Data.List.NonEmpty (nonEmpty)
 import Data.These
 import GitSaveAll.BranchState
 import GitSaveAll.Git (push)
@@ -44,8 +45,10 @@ run options = do
           <> branch
           <> " needs to be force-pushed"
 
+  let repos = maybe (pure cwd) (fmap (cwd </>)) $ nonEmpty options.repos
+
   runConduit
-    $ yieldMany ((cwd </>) <$> options.repos)
+    $ yieldMany repos
     .| awaitForever (sourceRepoBranches options.remote)
     .| filterC includeBranch
     .| awaitForever (sourceBranchState options.remote)
