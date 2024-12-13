@@ -12,21 +12,21 @@ This is tedious to do by hand, so I wrote this tool:
 
 ```console
 % git-save-all */* --quiet
-WARNING: /home/patrick/code/freckle/aeson-compat/ could not fetch origin
+! /home/patrick/code/freckle/aeson-compat/ remote origin does not exist
 ✗ freckle/hs-opentelemetry@main needs to be pushed
-WARNING: /home/patrick/code/iterative/iterative.ai/ could not fetch origin
+! /home/patrick/code/iterative/iterative.ai/ remote origin does not exist
 ✗ jfstephe/aws-s3-lock@pb/first needs to be pushed
 ✗ jfstephe/aws-s3-lock@pb/git-save-all-wip needs to be pushed
 ✗ josephsumabat/static-ls@pb/git-save-all-wip needs to be pushed
 ✗ kazu-yamamoto/logger@pb/repro needs to be pushed
 ! Maskuh/status@main needs to be force-pushed
-WARNING: /home/patrick/code/pbrisbin/amazonka-s3-sync/ could not fetch origin
-WARNING: /home/patrick/code/pbrisbin/expenses/ could not fetch origin
-WARNING: /home/patrick/code/pbrisbin/git-save-all/ could not fetch origin
-WARNING: /home/patrick/code/pbrisbin/jmap/ could not fetch origin
-WARNING: /home/patrick/code/pbrisbin/one-dictionary/ could not fetch origin
+! /home/patrick/code/pbrisbin/amazonka-s3-sync/ remote origin does not exist
+! /home/patrick/code/pbrisbin/expenses/ remote origin does not exist
+! /home/patrick/code/pbrisbin/git-save-all/ remote origin does not exist
+! /home/patrick/code/pbrisbin/jmap/ remote origin does not exist
+! /home/patrick/code/pbrisbin/one-dictionary/ remote origin does not exist
 ✗ pbrisbin/opt-env-conf@master needs to be pushed
-WARNING: /home/patrick/code/pbrisbin/stack-tools/ could not fetch origin
+! /home/patrick/code/pbrisbin/stack-tools/ remote origin does not exist
 ✗ renaissance-learning/wg-soc2@pb/data-driven-findings needs to be pushed
 ! renaissance-learning/wg-soc2@pb/discussins needs to be force-pushed
 ✗ renaissance-learning/wg-soc2@pb/finalize needs to be pushed
