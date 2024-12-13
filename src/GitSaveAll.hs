@@ -40,18 +40,15 @@ main :: IO ()
 main = do
   (orgs, _) <- listDir code
 
-  actions <-
-    runConduit
-      $ yieldMany orgs
-      .| filterC includeOrg
-      .| concatMapMC (fmap fst . listDir)
-      .| sourceBranches
-      .| iterMC print
-      .| filterC includeBranch
-      .| processRepoBranch defaultRemote
-      .| sinkList
-
-  print actions
+  runConduit
+    $ yieldMany orgs
+    .| filterC includeOrg
+    .| concatMapMC (fmap fst . listDir)
+    .| sourceBranches
+    .| filterC includeBranch
+    .| processRepoBranch defaultRemote
+    .| filterC (not . isInSyncOrBehind)
+    .| mapM_C print
  where
   includeOrg :: Path Abs Dir -> Bool
   includeOrg =
@@ -88,9 +85,7 @@ processRepoBranch remote = awaitForever $ \rb ->
   case rb.branch of
     This a -> yield $ PushNeeded rb.repo a Nothing
     That {} -> pure ()
-    These a _ -> do
-      bs <- lift $ getBranchState rb.repo remote a
-      yield bs
+    These a _ -> yield =<< lift (getBranchState rb.repo remote a)
 
 pairup :: Ord a => [a] -> [a] -> [These a a]
 pairup [] as = That <$> as
