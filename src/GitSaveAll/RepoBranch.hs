@@ -25,7 +25,7 @@ import GitSaveAll.Branch
 import GitSaveAll.Git
 import Path
 import System.Process.Typed (ExitCodeException (..))
-import UnliftIO.Exception (Exception, throwIO, try)
+import UnliftIO.Exception (Exception, catch, throwIO, try)
 
 data RepoBranch = RepoBranch
   { repo :: Path Abs Dir
@@ -46,14 +46,7 @@ sourceRepoBranches
   -> Path Abs Dir
   -> ConduitT (Path Abs Dir) (Either RepoException RepoBranch) m ()
 sourceRepoBranches remote repo = do
-  result <- liftIO $ try $ do
-    isGit <- isGitRepo repo
-    unless isGit $ throwIO $ NotGit repo
-
-    isDirty <- isGitDirty repo
-    when isDirty $ throwIO $ GitDirty repo
-
-    either (throwIO . GitFetchError repo) pure =<< try (fetch repo remote)
+  result <- liftIO $ try $ ensureCleanFetchedRepo repo remote
 
   case result of
     Left ex -> yield $ Left ex
@@ -65,6 +58,16 @@ sourceRepoBranches remote repo = do
         $ bimap sort sort
         $ partitionBranches remote
         $ mapMaybe parseBranch bs
+
+ensureCleanFetchedRepo :: Path Abs Dir -> String -> IO ()
+ensureCleanFetchedRepo repo remote = do
+  isGit <- isGitRepo repo
+  unless isGit $ throwIO $ NotGit repo
+
+  isDirty <- isGitDirty repo
+  when isDirty $ throwIO $ GitDirty repo
+
+  fetch repo remote `catch` \ex -> throwIO (GitFetchError repo ex)
 
 pairup :: Ord a => [a] -> [a] -> [These a a]
 pairup [] as = That <$> as
