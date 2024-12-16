@@ -16,6 +16,7 @@ module GitSaveAll.RepoBranch
 import Prelude
 
 import Conduit
+import Control.Monad (unless, when)
 import Data.Bifunctor (bimap)
 import Data.List (sort)
 import Data.Maybe (mapMaybe)
@@ -24,7 +25,7 @@ import GitSaveAll.Branch
 import GitSaveAll.Git
 import Path
 import System.Process.Typed (ExitCodeException (..))
-import UnliftIO.Exception (try)
+import UnliftIO.Exception (Exception, throwIO, try)
 
 data RepoBranch = RepoBranch
   { repo :: Path Abs Dir
@@ -32,11 +33,12 @@ data RepoBranch = RepoBranch
   }
   deriving stock Show
 
-data RepoException = RepoException
-  { repo :: Path Abs Dir
-  , exception :: ExitCodeException
-  }
+data RepoException
+  = NotGit (Path Abs Dir)
+  | GitDirty (Path Abs Dir)
+  | GitFetchError (Path Abs Dir) ExitCodeException
   deriving stock Show
+  deriving anyclass Exception
 
 sourceRepoBranches
   :: MonadIO m
@@ -44,10 +46,17 @@ sourceRepoBranches
   -> Path Abs Dir
   -> ConduitT (Path Abs Dir) (Either RepoException RepoBranch) m ()
 sourceRepoBranches remote repo = do
-  result <- liftIO $ try $ fetch repo remote
+  result <- liftIO $ try $ do
+    isGit <- isGitRepo repo
+    unless isGit $ throwIO $ NotGit repo
+
+    isDirty <- isGitDirty repo
+    when isDirty $ throwIO $ GitDirty repo
+
+    either (throwIO . GitFetchError repo) pure =<< try (fetch repo remote)
 
   case result of
-    Left ex -> yield $ Left $ RepoException repo ex
+    Left ex -> yield $ Left ex
     Right () -> do
       bs <- branchListAll repo
       yieldMany

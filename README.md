@@ -61,6 +61,18 @@ Available options:
   -h,--help                Show this help text
 ```
 
+## TODO
+
+If a repository being checked as a dirty working directory, should we:
+
+1. Error
+2. Commit those changes to a branch (and save it)
+
+If a branch has been merged and deleted, it's reported as needing a push. We
+could check if it's ahead/behind the default branch and, assuming a rebase
+strategy is used, it being behind (and not ahead) would indicate it was merged
+and we can skip it.
+
 ## LICENSE
 
 AGPLv3. See [COPYING](./COPYING).

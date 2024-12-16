@@ -10,6 +10,7 @@
 -- Portability : POSIX
 module GitSaveAll.Git
   ( isGitRepo
+  , isGitDirty
   , fetch
   , branchListAll
   , revListCount
@@ -28,6 +29,11 @@ import System.Process.Typed
 
 isGitRepo :: MonadIO m => Path Abs Dir -> m Bool
 isGitRepo repo = doesDirExist $ repo </> dotGit
+
+isGitDirty :: MonadIO m => Path Abs Dir -> m Bool
+isGitDirty repo =
+  not . null . BSL8.lines
+    <$> readGit repo ["status", "--porcelain", "--no-untracked-files"]
 
 fetch :: MonadIO m => Path Abs Dir -> String -> m ()
 fetch repo remote = void $ readGit repo ["fetch", remote]
@@ -48,7 +54,7 @@ push repo remote branch = runGit repo ["push", "--quiet", "-u", remote, branch]
 readGit :: MonadIO m => Path Abs Dir -> [String] -> m ByteString
 readGit repo args =
   fst
-    <$> readProcess_ (proc "git" $ ["--git-dir", toFilePath $ repo </> dotGit] <> args)
+    <$> readProcess_ (proc "git" $ ["-C", toFilePath repo] <> args)
 
 runGit :: MonadIO m => Path Abs Dir -> [String] -> m ()
 runGit repo args =

@@ -45,11 +45,11 @@ run options = do
 
     onRepoException :: RepoException -> IO ()
     onRepoException re =
-      T.putStrLn
-        $ r
-        $ red "! "
-        <> cyan (toRepoBase re.repo)
-        <> red (" could not fetch " <> fromString options.remote)
+      T.putStrLn $ r $ red "! " <> case re of
+        NotGit repo -> cyan (toRepoBase repo) <> red " not a git repository"
+        GitDirty repo -> cyan (toRepoBase repo) <> red " working directory dirty"
+        GitFetchError repo _ ->
+          cyan (toRepoBase repo) <> red (" could not fetch " <> fromString options.remote)
 
     onBranchState :: BranchState -> IO ()
     onBranchState = \case
